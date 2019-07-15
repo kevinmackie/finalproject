@@ -1,0 +1,55 @@
+---
+title: "Final Project Proposal"
+author: Shane Taylor shanemt2@illinois.edu; Zhouning Ma zm11@illinois.edu; Kevin Mackie
+  kevindm2@illinois.edu
+date: "11/07/2019"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tenative title: Explanatory model for predicting house prices
+
+### Team members
+
+* Shane Taylor shanemt2@illinois.edu
+* Zhouning "Tony" Ma zm11@illinois.edu
+* Kevin Mackie kevindm2@illinois.edu
+
+### Data set
+
+The data set was found on Kaggle, but is a publicly available data set on housing prices curated by Dean De Cock of Truman state university.
+
+* https://www.kaggle.com/c/house-prices-advanced-regression-techniques/overview
+* http://jse.amstat.org/v19n3/decock.pdf
+
+It consists of 1460 observations with one numerical response (house price) and 80 predictors. The predictors are a relatively even mix of numerical and categorical variables.
+
+One of the challenges in using this data set will be model selection, as there are a huge number of predictors available. These include typical predictors for house pricing (lot frontage and size, total square footage), but many other predictors as well (type and condition of sale; specific features of the house such as whether it has a pool, central air; features of the street and neighborhood; etc.)
+
+Our interest in this data set is primarily for its many data analysis possibilities. It has a large number of observations and many predictors of different types. As a final project data set it gives us a lot to work with to demonstrate grasp of course concepts. It will also be interesting to explore the data and discover the most important and powerfully explantory (and hopefully surprising) factors influencing house pricing. We assessed at least two other data sets in addition to this one, but decided that this house pricing data set was the most substantial to work with.
+
+### Initial observations
+
+We provide evidence here that the data set can be loaded into R. 
+
+```{r}
+house_prices = read.csv("train.csv")
+head(house_prices)
+```
+
+And show a simple regression from the data. 
+
+```{r}
+m = lm(SalePrice ~ GrLivArea + CentralAir, data = house_prices)
+plot(house_prices$GrLivArea,house_prices$SalePrice,  col = as.numeric(house_prices$CentralAir) + 1,
+     xlab = "General Living Area", ylab = "Sales Price")
+abline(coef(m)[1],coef(m)[2], col = 2, lwd = 2)
+abline(coef(m)[1]+coef(m)[3],coef(m)[2], col = 3, lwd = 2)
+legend("topleft", legend = c("No Central Air","Central Air"), col = 2:3, lwd = 2)
+```
