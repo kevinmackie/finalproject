@@ -47,7 +47,6 @@ data$Fence = convert_factor_to_numeric(data$Fence)
 data$MiscFeature = convert_factor_to_numeric(data$MiscFeature)
 
 
-
 #head(data)
 #str(data)
 
