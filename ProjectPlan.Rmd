@@ -1,0 +1,34 @@
+---
+title: "House Price - Final Project Plan "
+author: "Shane Taylor | Zhouning (Tony) Ma | Kevin Mackie"
+date: "7/12/2019"
+output: html_document
+---
+
+
+
+***
+## Conception & Initiation
+
+
+
+
+
+## Definition Planning
+
+
+
+
+
+## Launch or Execution
+
+
+
+
+
+## Project Quality Deliverables
+
+
+
+
+## Project close
