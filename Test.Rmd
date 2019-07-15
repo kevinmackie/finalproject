@@ -1,6 +1,6 @@
 ---
-title: "House Price"
-author: "Tony Ma"
+title: "House Price - Test "
+author: "Shane Taylor | Zhouning (Tony) Ma | Kevin Mackie"
 date: "7/12/2019"
 output: html_document
 ---
