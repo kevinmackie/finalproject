@@ -2,10 +2,10 @@
 title: "Final Project Proposal"
 author: Shane Taylor shanemt2@illinois.edu; Zhouning Ma zm11@illinois.edu; Kevin Mackie
   kevindm2@illinois.edu
-date: "11/07/2019"
+date: "17/07/2019"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
   word_document: default
 ---
 
@@ -23,7 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Data set
 
-The data set was found on Kaggle, but is a publicly available data set on housing prices curated by Dean De Cock of Truman state university.
+The data, which was found on Kaggle, is a publicly available data set on housing prices that was curated by Dean De Cock of Truman state university.
 
 * https://www.kaggle.com/c/house-prices-advanced-regression-techniques/overview
 * http://jse.amstat.org/v19n3/decock.pdf
@@ -32,7 +32,22 @@ It consists of 1460 observations with one numerical response (house price) and 8
 
 One of the challenges in using this data set will be model selection, as there are a huge number of predictors available. These include typical predictors for house pricing (lot frontage and size, total square footage), but many other predictors as well (type and condition of sale; specific features of the house such as whether it has a pool, central air; features of the street and neighborhood; etc.)
 
-Our interest in this data set is primarily for its many data analysis possibilities. It has a large number of observations and many predictors of different types. As a final project data set it gives us a lot to work with to demonstrate grasp of course concepts. It will also be interesting to explore the data and discover the most important and powerfully explantory (and hopefully surprising) factors influencing house pricing. We assessed at least two other data sets in addition to this one, but decided that this house pricing data set was the most substantial to work with.
+### Questions to answer with the data set
+
+Our interest in this data set is that it has a reasonable number of observations and many numeric and categorical predictors. As a final project data set, it gives us a lot to work with for model selection and analysis. 
+
+The questions we wish to answer with this data set are:
+
+* Given the very large number of predictors available, what is the minimal set of predictors needed to produce a low rate (defined below) of prediction errors?
+* What is the set of predictors that can both achieve acceptable prediction performance and provide a good explanatory model?
+
+In short, we want to find a model that both performs well and is good for explantory purposes.
+
+Translating the above questions into specific goals, we will perform a model selection process to identify a linear model that:
+
+* Has a Mean Absolute Percentage Error less than 15%, and preferably 10% or lower
+* Adheres to LINE assumptions for linear regression i.e. has a BP test p value of < 0.1 and/or a Shapiro-Wilk p value of < 0.1
+* Has no destabilizing collinearity among the predictors i.e. no VIF >= 5
 
 ### Initial observations
 
@@ -53,3 +68,37 @@ abline(coef(m)[1],coef(m)[2], col = 2, lwd = 2)
 abline(coef(m)[1]+coef(m)[3],coef(m)[2], col = 3, lwd = 2)
 legend("topleft", legend = c("No Central Air","Central Air"), col = 2:3, lwd = 2)
 ```
+
+As well as initial diagnostic plots:
+
+```{r}
+par(mfrow = c(1,2))
+plot(fitted(m), resid(m), main = "Fitted vs Residuals", col = "grey")
+abline(0,0, col = "orange", lwd = 2)
+qqnorm(resid(m), col = "grey")
+qqline(resid(m), col = "orange")
+```
+
+And some initial accuracy assessments:
+
+```{r}
+calc_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+
+mape = function(actual, pred){
+  mean(abs((actual - pred) / actual)) * 100
+}
+
+convert_factor_to_numeric = function(variable){
+  result = as.numeric(variable)
+  result[which(is.na(result))] = 0
+  result
+}
+```
+
+```{r}
+calc_loocv_rmse(m)
+mape(house_prices$SalePrice, fitted(m))
+```
+
