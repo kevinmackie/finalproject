@@ -1,0 +1,24 @@
+---
+title: "Final Project"
+author: "Shane Taylor shanemt2@illinois.edu; Zhouning Ma zm11@illinois.edu; Kevin Mackie"
+date: "7/28/2019"
+output: html_document
+---
+
+# Introduction
+
+# Data Acquisition
+
+# Building the Model 
+## Colinearity 
+## Removing influential data points
+## Transformations
+## Alternative models
+## Model Comparison
+
+# Model Validation
+## AIC/BIC Testing
+## LOOCV_RMSE
+
+
+# Conclusion
