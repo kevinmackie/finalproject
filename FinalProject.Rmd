@@ -13,13 +13,150 @@ output: html_document
 - Kevin Mackie kevindm2@illinois.edu
 
 
+# Library
+```{r}
+#install.packages("corrplot")
+#install.packages("kableExtra")
+
+
+library(GGally)
+library(faraway)
+library(leaps)
+library(corpcor)
+library(corrplot)
+library(ggcorrplot)
+library(knitr)
+library(kableExtra)
+```
+
+#Public method
+```{r}
+calc_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+
+mape = function(actual, pred){
+  mean(abs((actual - pred) / actual)) * 100
+}
+
+convert_factor_to_numeric = function(variable){
+  result = as.numeric(variable)
+  result[which(is.na(result))] = 0
+  result
+}
+```
+
+
+
 # Introduction
-- What is this data? 
-- Where did it come from? 
-- What are the variables? 
-- Why is it interesting to you?
-- Why are you creating a model for this data? 
-- What is the goal of this model?
+The data, which was found on Kaggle, is a publicly available data set on housing prices that was curated by Dean De Cock of Truman state university.
+
+* https://www.kaggle.com/c/house-prices-advanced-regression-techniques/overview
+* http://jse.amstat.org/v19n3/decock.pdf
+
+It consists of 1460 observations with one numerical response (house price) and 80 predictors. The predictors are a relatively even mix of numerical and categorical variables.
+
+Here's a brief version of what you'll find in the data description file.
+
+- SalePrice - the property's sale price in dollars. This is the target variable that you're trying to predict.
+- MSSubClass: The building class
+- MSZoning: The general zoning classification
+- LotFrontage: Linear feet of street connected to property
+- LotArea: Lot size in square feet
+- Street: Type of road access
+- Alley: Type of alley access
+- LotShape: General shape of property
+- LandContour: Flatness of the property
+- Utilities: Type of utilities available
+- LotConfig: Lot configuration
+- LandSlope: Slope of property
+- Neighborhood: Physical locations within Ames city limits
+- Condition1: Proximity to main road or railroad
+- Condition2: Proximity to main road or railroad (if a second is present)
+- BldgType: Type of dwelling
+- HouseStyle: Style of dwelling
+- OverallQual: Overall material and finish quality
+- OverallCond: Overall condition rating
+- YearBuilt: Original construction date
+- YearRemodAdd: Remodel date
+- RoofStyle: Type of roof
+- RoofMatl: Roof material
+- Exterior1st: Exterior covering on house
+- Exterior2nd: Exterior covering on house (if more than one material)
+- MasVnrType: Masonry veneer type
+- MasVnrArea: Masonry veneer area in square feet
+- ExterQual: Exterior material quality
+- ExterCond: Present condition of the material on the exterior
+- Foundation: Type of foundation
+- BsmtQual: Height of the basement
+- BsmtCond: General condition of the basement
+- BsmtExposure: Walkout or garden level basement walls
+- BsmtFinType1: Quality of basement finished area
+- BsmtFinSF1: Type 1 finished square feet
+- BsmtFinType2: Quality of second finished area (if present)
+- BsmtFinSF2: Type 2 finished square feet
+- BsmtUnfSF: Unfinished square feet of basement area
+- TotalBsmtSF: Total square feet of basement area
+- Heating: Type of heating
+- HeatingQC: Heating quality and condition
+- CentralAir: Central air conditioning
+- Electrical: Electrical system
+- 1stFlrSF: First Floor square feet
+- 2ndFlrSF: Second floor square feet
+- LowQualFinSF: Low quality finished square feet (all floors)
+- GrLivArea: Above grade (ground) living area square feet
+- BsmtFullBath: Basement full bathrooms
+- BsmtHalfBath: Basement half bathrooms
+- FullBath: Full bathrooms above grade
+- HalfBath: Half baths above grade
+- Bedroom: Number of bedrooms above basement level
+- Kitchen: Number of kitchens
+- KitchenQual: Kitchen quality
+- TotRmsAbvGrd: Total rooms above grade (does not include bathrooms)
+- Functional: Home functionality rating
+- Fireplaces: Number of fireplaces
+- FireplaceQu: Fireplace quality
+- GarageType: Garage location
+- GarageYrBlt: Year garage was built
+- GarageFinish: Interior finish of the garage
+- GarageCars: Size of garage in car capacity
+- GarageArea: Size of garage in square feet
+- GarageQual: Garage quality
+- GarageCond: Garage condition
+- PavedDrive: Paved driveway
+- WoodDeckSF: Wood deck area in square feet
+- OpenPorchSF: Open porch area in square feet
+- EnclosedPorch: Enclosed porch area in square feet
+- 3SsnPorch: Three season porch area in square feet
+- ScreenPorch: Screen porch area in square feet
+- PoolArea: Pool area in square feet
+- PoolQC: Pool quality
+- Fence: Fence quality
+- MiscFeature: Miscellaneous feature not covered in other categories
+- MiscVal: $Value of miscellaneous feature
+- MoSold: Month Sold
+- YrSold: Year Sold
+- SaleType: Type of sale
+- SaleCondition: Condition of sale
+
+One of the challenges in using this data set will be model selection, as there are a huge number of predictors available. These include typical predictors for house pricing (lot frontage and size, total square footage), but many other predictors as well (type and condition of sale; specific features of the house such as whether it has a pool, central air; features of the street and neighborhood; etc.)
+
+Our interest in this data set is that it has a reasonable number of observations and many numeric and categorical predictors. As a final project data set, it gives us a lot to work with for model selection and analysis. 
+
+The questions we wish to answer with this data set are:
+
+* Given the very large number of predictors available, what is the minimal set of predictors needed to produce a low rate (defined below) of prediction errors?
+* What is the set of predictors that can both achieve acceptable prediction performance and provide a good explanatory model?
+
+In short, we want to find a model that both performs well and is good for explantory purposes.
+
+Translating the above questions into specific goals, we will perform a model selection process to identify a linear model that:
+
+* Has a Mean Absolute Percentage Error less than 15%, and preferably 10% or lower
+* Adheres to LINE assumptions for linear regression i.e. has a BP test p value of < 0.1 and/or a Shapiro-Wilk p value of < 0.1
+* Has no destabilizing collinearity among the predictors i.e. no VIF >= 5
+
+
 
 # Methods
 This section should contain any information about data preparation that is performed to the original data before modelling. Then you will apply methods seen in class, which may include some of the following but are not limited to:
@@ -33,6 +170,141 @@ This section should contain any information about data preparation that is perfo
 - Polynomial regression
 - Model selection
 Your task is not to use as many methods as possible. Your task is to use appropriate methods to find a good model that can correctly answer a question about the dataset, and then to communicate your result effectively.
+
+
+## Exploratory Data Analysis
+```{r}
+house_prices = read.csv("train.csv")
+head(house_prices)
+```
+
+And show a simple regression from the data. 
+
+```{r}
+m = lm(SalePrice ~ GrLivArea + CentralAir, data = house_prices)
+plot(house_prices$GrLivArea,house_prices$SalePrice,  col = as.numeric(house_prices$CentralAir) + 1,
+     xlab = "General Living Area", ylab = "Sales Price")
+abline(coef(m)[1],coef(m)[2], col = 2, lwd = 2)
+abline(coef(m)[1]+coef(m)[3],coef(m)[2], col = 3, lwd = 2)
+legend("topleft", legend = c("No Central Air","Central Air"), col = 2:3, lwd = 2)
+```
+
+As well as initial diagnostic plots:
+
+```{r}
+
+
+data = house_prices
+
+
+(data$Alley = convert_factor_to_numeric(data$Alley))
+data$Utilities = convert_factor_to_numeric(data$Utilities)
+data$PoolQC = convert_factor_to_numeric(data$PoolQC)
+data$Fence = convert_factor_to_numeric(data$Fence)
+data$MiscFeature = convert_factor_to_numeric(data$MiscFeature)
+
+
+cols = colnames(data)
+length(colnames(data))
+
+train = data
+
+factors = vector()
+model = lm("SalePrice ~ 1", train)
+last_model = model
+last_factors = cbind()
+datav2 = data
+drops = cbind()
+for(i in 1:length(cols))
+{
+  if(cols[i] != "SalePrice"){
+    factors = cbind(last_factors, cols[i])
+    tryCatch({
+      model = lm(as.formula(paste("SalePrice ~ ", paste(factors, collapse="+"))), train)
+      last_model = model
+      last_factors = factors
+    },error = function(e){
+      print(cols[i])
+      print(e)
+    }, finally = {
+      if(length(last_factors) != length(factors)) {
+        drops = c(drops, cols[i])
+      }
+    }
+    )
+  }
+}
+
+drops
+datav2 = data[ ,!(names(data) %in% drops)]
+
+summary(last_model)
+str(datav2)
+length(colnames(datav2))
+
+```
+
+
+
+
+```{r}
+# Test collinearity
+sapply(datav2, class)
+datav3 = datav2[sapply(datav2, function(x) !is.factor(x))]
+cor_result = round(cor(datav3), 2)
+#head(cor_result)
+
+
+
+```
+
+
+```{r}
+# Test vif
+vif(datav3)
+```
+
+##Correlation tests
+
+```{r}
+#There some na in the data, omit those na, the test will be able to find fit model
+#no_na_data = na.omit(datav3)
+
+#nrow(no_na_data)
+
+#SalePrice
+
+
+house_pricesv1 = house_prices[sapply(house_prices, function(x) !is.factor(x))]
+drops <- c("Id","SalePrice")
+house_pricesv2 = house_pricesv1[ , !(names(house_pricesv1) %in% drops)]
+X = na.omit(house_pricesv2)
+corr_data = round(cor(na.omit(X)), 4)
+corrplot(corr_data, type = "upper", tl.pos = "td",
+         method = "circle", tl.cex = 0.5, tl.col = 'black',
+         diag = FALSE)
+
+#corr_dataWithFormat = corr_data
+#for(i in 1:ncol(corr_data)){
+#  for(j in 1:nrow(corr_data)){
+#    corr_dataWithFormat[i, j] = cell_spec(corr_data[i, j], color = ifelse(abs(corr_data[i, j]) > 0.3, "red", "black"),  bold = T )
+#  }
+#}
+#select(corr_dataWithFormat) %>%
+#  kable("html", escape = F) %>%
+#  kable_styling("striped", full_width = F)
+
+
+
+kable(corr_data, "html") %>%
+  kable_styling(bootstrap_options = "striped", font_size = 9) %>%
+  #row_spec(color.me, bold = T, color = "white", background = "red")
+  scroll_box(width = "100%", height = "500px")
+
+```
+
+
+
 
 
 # Results
