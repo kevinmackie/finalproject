@@ -14,7 +14,7 @@ output: html_document
 
 
 # Library
-```{r}
+```{r, warning=FALSE}
 #install.packages("corrplot")
 #install.packages("kableExtra")
 #install.packages('caret', dependencies = TRUE)
@@ -32,6 +32,10 @@ library(caret)
 library(outliers)
 library(MASS)
 library(faraway)
+library(ggplot2)
+library(ggthemes)
+library(lmtest)
+
 ```
 
 #Public method
@@ -39,7 +43,8 @@ library(faraway)
 ```{r}
 ptm = proc.time()
 is_debug = TRUE
-
+missing = "missing"
+response  = c("SalePrice")
 
 calc_loocv_rmse = function(model) {
   sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
@@ -73,6 +78,38 @@ end_log = function(){
        print(proc.time() - ptm)
     }
 }
+
+validate_data_structure = function(dataset1, dataset2){
+  validate_result = TRUE 
+  for (i in which(sapply(dataset2, is.factor))) {
+     level1 = unique(dataset1[, i])
+     level2 = unique(dataset2[, i])
+      
+          
+     if (length(setdiff(level1, level2)) > 0){
+         print(level1)
+         print(level2)
+         validate_result = FALSE
+     }
+     if (length(setdiff(level2, level1)) > 0){
+         print(level2)
+         print(level1)
+         validate_result = FALSE
+     }
+  }
+  validate_result
+}
+
+
+get_Subset_by_remove_no_existing_factors = function(test_dataset, train_dataset){
+  result_dataset = test_dataset
+  for (i in which(sapply(test_dataset, is.factor))) {
+     train_levels = unique(train_dataset[, i])
+     result_dataset = subset(result_dataset, (result_dataset[,i] %in% train_levels))
+  }
+  result_dataset
+}
+
 
 
 ```
@@ -212,62 +249,13 @@ preprocess = function(dataset){
   }
 
   
-     # factor preprocess
+  # factor preprocess
   datasetv2 = datasetv1
   for (i in which(sapply(datasetv1, is.character))) {
-      datasetv2[is.na(datasetv1[, i]), i] = 0
-      #level = unique(datasetv2[, 1])
-      #label = seq(1, length(level))
-      #datasetv2[, i] = factor(datasetv2[, i], levels = level, labels = label)
+      datasetv2[is.na(datasetv1[, i]), i] = missing
       datasetv2[, i] = as.factor(datasetv2[, i])
   }
 
-    
-  
-   # factor preprocess
-   #datasetv2 = datasetv1
-   #number_of_column = ncol(dataset)
-   #for(i in 1:number_of_column){
-  #    if (is.factor(dataset[, i])){
-  #       level = c(unique(dataset[, i]))
-  #       label = c()
-  #       if (sum(is.na(level)) > 0){
-   #          label = c(seq(1, length(level) - 1 ), 0)
-   #      } else {
-  #           label = c(seq(1, length(level)))
-  #       }
-  #       #datasetv2[, i] = factor(dataset[, i], levels = level, labels = label)
-  #         datasetv2[, i] = factor(datasetv1[, i], levels = level, labels = label, exclude = NULL)
-  #         
-  #         #factor(fac, levels = c(levels(fac), NA), labels = c(levels(fac), 88), exclude = NULL)
-  #    }
-  # }
-
-
-   # factor preprocess
-   #datasetv2 = datasetv1
-   #number_of_column = ncol(dataset)
-   #for(i in 1:number_of_column){
-  #    if (is.character(dataset[, i])){
-   #      level = c(unique(dataset[, i]))
-  #       label = rep(1, length(level))
-   #      datasetv2[, i] = factor(dataset[, i], levels = level, labels = label)
-  #    }
-   #}
-
-
-  
-   ## factor preprocess
-   #datasetv3 = dataset2
-   #number_of_column = ncol(dataset)
-   #for(i in 1:number_of_column){
-  #    if (is.factor(dataset[, i])){
-  #       print(colnames(dataset[i]))
-  #       datasetv2[, i] = convert_factor_to_numeric(dataset[, i])
-  #    }
-  # }
-
-  
    #Removing outlier data points
    datasetv3 = datasetv2
    if (!is_debug){
@@ -283,62 +271,37 @@ preprocess = function(dataset){
            }
         }
     }  
-  }
-
+   }
    
-    
-     
-  # Preprocess factors
-  #dataset$nation = factor(dataset$nation, levels = c('India','Germany','Russia'), labels = c(1,2,3))
-  
-  
-
-
-   #datasetv2$Alley = convert_factor_to_numeric(dataset$Alley)
-   #datasetv2$Utilities = convert_factor_to_numeric(dataset$Utilities)
-   #datasetv2$PoolQC = convert_factor_to_numeric(dataset$PoolQC)
-   #datasetv2$Fence = convert_factor_to_numeric(dataset$Fence)
-   #datasetv2$MiscFeature = convert_factor_to_numeric(dataset$MiscFeature)
-   #datasetv2$Neighborhood = convert_factor_to_numeric(dataset$Neighborhood)
-
-   #datasetv3$Alley = factor(datasetv3$Alley, levels = c('Grvl', 'Pave'), labels = c(1, 2))
-
-   
-   
- 
-   #house_prices_v2 = house_prices_v1[sapply(house_prices_v1, function(x) !is.factor(x))]
-   #house_prices_v2 = house_prices_v1[sapply(house_prices_v1, function(x) !is.factor(x))]
-  
-   datasetv4 = datasetv3
-   #datasetv4 = datasetv3[sapply(datasetv3, function(x) !is.factor(x))]
-  
-   #datasetv5 = na.omit(datasetv4)
-   
-   datasetv5 = datasetv4
-   #number_of_column = ncol(datasetv4)
-   #for(i in 1:number_of_column){
-  #    if (is.numeric(datasetv4[, i])){
-  #        datasetv5[, i] = ifelse(is.na(datasetv4[, i]), ave(datasetv4[, i], FUN = function(x) mean(x, na.rm = TRUE)), datasetv4[, i])
-   #   }
-   #}
-
-   datasetv5
+   datasetv3
 }
 
+
+drop_only_one_level_factor = function(dataset){
+  datasetv1 = dataset
+  droplist = c()
+  for (i in which(sapply(dataset, is.factor))) {
+      level = unique(dataset[, i])
+      if ((length(level) <= 1) | ((length(level) == 2) & (missing %in% level))){
+          droplist = c(droplist, i)
+      }
+  }
+
+  for (i in which(sapply(datasetv1, is.numeric))) {
+      level = unique(datasetv1[, i])
+      if (length(level) <= 1){
+          droplist = c(droplist, i)
+      }
+  }
+  datasetv1 = datasetv1[ , -droplist]
+  datasetv1
+}
 ```
 
 
 ```{r}
 train = read.csv("train.csv", stringsAsFactors=FALSE)[, -1]
-#train = read.csv("train.csv")[, -1]
-str(train)
-unique(train$Alley)
-nrow(train)
-sum(is.na(train))
-house_prices = preprocess(train)
-sum(is.na(house_prices))
-str(house_prices)
-nrow(house_prices)
+house_prices_train = preprocess(train)
 
 ```
 
@@ -363,7 +326,6 @@ correlation_plot = function(corr_data){
 correlation_table = function(corr_data){
    kable(corr_data, "html") %>%
      kable_styling(bootstrap_options = "striped", font_size = 9) %>%
-     #row_spec(color.me, bold = T, color = "white", background = "red")
      scroll_box(width = "100%", height = "500px")
 }
 
@@ -372,7 +334,7 @@ correlation_list = function(corr_data){
 }
 
 
-X_numeric = house_prices[sapply(house_prices, is.numeric)]
+X_numeric = house_prices_train[sapply(house_prices_train, is.numeric)]
 correlation_test_result = correlation_tests(X_numeric)
 correlation_plot(correlation_test_result)
 correlation_table(correlation_test_result)
@@ -380,224 +342,194 @@ correlation_list(correlation_test_result)
 ```
 
 
-```{r}
-build_additive_model = function(data){
-    additive_model = lm(SalePrice ~ ., data)
-    additive_model
-}
-```
 
-```{r}
-build_model_by_AIC_Backward = function(data){
-   start_log()
-   additive_model = lm(SalePrice ~ ., data)
-   aic_backward_model = step(additive_model, trace = 0)
-   end_log()
-   aic_backward_model
+
+
+
+```{r, warning=FALSE}
+remove_leverage_Observations = function(model, data){
+     data[-which(hatvalues(model) > 2 * mean(hatvalues(model))), ]
 }
 
-build_model_by_BIC_Backward = function(data){
-   start_log()
-   additive_model = lm(SalePrice ~ ., data)
-   n = nrow(data)
-   model = step(additive_model, k = log(n), trace = 0)
-   end_log()
-   model
+remove_Outliers_Observations = function(model, data){
+     data[-which(abs(rstandard(model)) > 2), ]
+}
+
+remove_Influence_Observations = function(model, data){
+     data[-which(cooks.distance(model) > 4 / length(cooks.distance(model))), ]
+}
+
+remove_unusual_observations = function(model, dataset){
+    dataset = remove_leverage_Observations(model, dataset)
+    dataset = remove_Outliers_Observations(model, dataset)
+    dataset = remove_Influence_Observations(model, dataset)
+    dataset = drop_only_one_level_factor(dataset)
+    dataset
 }
 
 
-```
 
-
-
-
-
-```{r}
-build_response_transfomer_model = function(data){
-    model = lm(log(SalePrice) ~ ., data)
+build_additive_model = function(dataset){
+    model = lm(SalePrice ~ ., data = dataset)
     model
 }
 ```
 
+>First of all, We will build an additive model.
+
 ```{r}
-build_model_by_AIC_Backward_response_transformer = function(data){
-   start_log()
-   model = lm(log(SalePrice) ~ ., data)
-   model = step(model, trace = 0)
-   end_log()
+additive_model = build_additive_model(house_prices_train)
+additive_model_data = remove_unusual_observations(additive_model, house_prices_train)
+additive_model = build_additive_model(additive_model_data)
+(vifs = vif(additive_model)[which(vif(additive_model) > 5)])
+
+```
+
+
+
+>Remote the predictors which VIF value greater than 5 to build the model
+```{r}
+build_dynamic_model = function(outcome, variables, data){
+   f= as.formula(paste(outcome, paste(variables, collapse=" + "), sep=" ~ ")) 
+   model = lm(f ,data) 
    model
 }
 
+# Dynamic build the model remove all the predictors which VIF value greater than 5
+allpredictors = names(house_prices_train)
+predictors = setdiff(allpredictors,  names(vifs)) 
+predictors = setdiff(predictors, response) 
+additive_modified_model = build_dynamic_model(response, predictors, house_prices_train)
+
+additive_modified_model_data = remove_unusual_observations(additive_modified_model, house_prices_train)
+allpredictors = names(additive_modified_model_data)
+predictors = setdiff(allpredictors,  names(vifs)) 
+predictors = setdiff(predictors, response) 
+additive_modified_model = build_dynamic_model(response, predictors, additive_modified_model_data)
+
+#(vifs = vif(additive_modified_model)[which(vif(additive_modified_model) > 5)])
 ```
 
 
-
+>AIC backward to select the model
 ```{r}
-build_model_by_AIC_exhaustive_search = function(data){
-   exhaustive_search_model = summary(regsubsets(SalePrice ~ ., data, really.big = T))
-   exhaustive_search_model
-}
-```
-
-```{r}
-build_model_by_AIC_exhaustive_Logit_search = function(data){
+build_model_by_AIC_Backward = function(data){
    start_log()
-   exhaustive_search_model = summary(regsubsets(log(SalePrice) ~ ., data, really.big = T))
-   exhaustive_search_model
+   start_model = lm(SalePrice ~ ., data)
+   aic_backward_model = step(start_model, trace = 0)
    end_log()
+   aic_backward_model
 }
+aic_backward_model = build_model_by_AIC_Backward(house_prices_train)
 
-build_response_transfomer_model_by_BIC_Result = function(data){
-##   SalePrice ~ MSSubClass + LotArea + Street + Neighborhood + Condition2 + 
-##     OverallQual + OverallCond + YearBuilt + RoofMatl + MasVnrArea + 
-##     ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1 + BsmtFinSF2 + 
-##     BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BedroomAbvGr + KitchenAbvGr + 
-##     KitchenQual + TotRmsAbvGrd + GarageArea + ScreenPorch + PoolArea + 
-##     PoolQC + SaleCondition
-      model = lm(log(SalePrice) ~ MSSubClass + LotArea + Street + Neighborhood + Condition2 + 
-                    OverallQual + OverallCond + YearBuilt + RoofMatl + MasVnrArea + 
-                    ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1 + BsmtFinSF2 + 
-                    BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BedroomAbvGr + KitchenAbvGr + 
-                    KitchenQual + TotRmsAbvGrd + GarageArea + ScreenPorch + PoolArea + 
-                    PoolQC + SaleCondition, data, trace = 0)
-      model
-}
-
-build_model_by_BIC_model = function(data, start_model){
-      n = nrow(data)
-      step(start_model, k = log(n), trace = 0)
-}
-
-build_model_by_both = function(data, start_model){
-   ## Model 1: log(SalePrice) ~ LotArea + Street + Neighborhood + Condition2 + 
-##     OverallQual + OverallCond + YearBuilt + RoofMatl + BsmtFinSF1 + 
-##     BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + KitchenAbvGr + 
-##     KitchenQual + TotRmsAbvGrd + GarageArea + ScreenPorch + SaleCondition
-  start_model = lm(log(SalePrice) ~ 1, data)   
-  model = step(start_model, scope = log(SalePrice) ~ LotArea + Street + Neighborhood + Condition2 +  OverallQual + 
-          OverallCond + YearBuilt + RoofMatl + BsmtFinSF1 + KitchenQual + 
-          TotRmsAbvGrd + GarageArea + ScreenPorch + SaleCondition,
-  direction = "both")
-  model   
-}
-build_model_from_response_by_BIC = function(data){
-   ## lm(formula = log(SalePrice) ~ MSSubClass + LotArea + Street + 
-##     Neighborhood + Condition2 + OverallQual + OverallCond + YearBuilt + 
-##     RoofMatl + MasVnrArea + ExterQual + BsmtQual + BsmtExposure + 
-##     BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
-##     BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
-##     GarageArea + ScreenPorch + PoolArea + PoolQC + SaleCondition, 
-##     data = data)
-  start_model = lm(log(SalePrice) ~ 1, data)   
-  model = step(start_model, scope = log(SalePrice) ~ MSSubClass + LotArea + Street + Neighborhood + Condition2 + 
-                  OverallQual + OverallCond + YearBuilt + RoofMatl + MasVnrArea + 
-                  ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1 + BsmtFinSF2 + 
-                  BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BedroomAbvGr + KitchenAbvGr + 
-                  KitchenQual + TotRmsAbvGrd + GarageArea + ScreenPorch + PoolArea + 
-                  PoolQC + SaleCondition,
-  direction = "both", trace = 0)
-  model   
-}
-
-
-```
-
-
-
-```{r}
-# additive_model => bic_backward_model => response_by_BIC_result => both_model_from_response_by_BIC
-#additive_model = build_additive_model(house_prices)
-#summary(additive_model)
-#aic_backward_model = build_model_by_AIC_Backward(house_prices)
 #summary(aic_backward_model)
-#anova(aic_backward_model, additive_model)
-#bic_backward_model = build_model_by_BIC_Backward(house_prices)
+
+#lm(formula = SalePrice ~ MSZoning + LotFrontage + LotArea + Street + 
+##     LandContour + Utilities + LotConfig + LandSlope + Neighborhood + 
+##     Condition1 + Condition2 + BldgType + HouseStyle + OverallCond + 
+##     YearRemodAdd + RoofStyle + RoofMatl + Exterior1st + MasVnrType + 
+##     ExterQual + BsmtQual + BsmtExposure + BsmtFinType1 + HeatingQC + 
+##     BedroomAbvGr + KitchenQual + FireplaceQu + GarageFinish + 
+##     GarageQual + GarageCond + PoolQC + SaleType, data = data)
+```
+
+>We will try BIC backward to select the model
+```{r}
+build_model_by_BIC_Backward = function(start_model, data){
+   start_log()
+   n = nrow(data)
+   model = step(start_model, k = log(n), trace = 0)
+   end_log()
+   model
+}
+bic_backward_model = build_model_by_BIC_Backward(additive_modified_model, additive_modified_model_data)
 #summary(bic_backward_model)
-#anova(bic_backward_model, aic_backward_model)
+#(vifs = vif(bic_backward_model)[which(vif(bic_backward_model) > 5)])
 
-#response_by_BIC_result = build_response_transfomer_model_by_BIC_Result(house_prices)
-#summary(response_by_BIC_result)
-#bic_log_model = build_model_by_BIC_model(house_prices, response_by_BIC_result)
-#summary(bic_log_model)
-#anova(bic_log_model, response_by_BIC_result)
-
-#both_model = build_model_by_both(house_prices)
-#summary(both_model)
-#coef(both_model)
-#anova(both_model, bic_log_model)
-#summary(both_model)$adj.r.squared
-#summary(bic_log_model)$adj.r.squared
-
-#both_model_from_response_by_BIC = build_model_from_response_by_BIC(house_prices)
-#summary(both_model_from_response_by_BIC)
-#summary(both_model_from_response_by_BIC)$adj.r.squared
-#anova(both_model_from_response_by_BIC, response_by_BIC_result)
-
-
-
-
-
-
-
-#all_exhaustive_model = build_model_by_AIC_exhaustive_search(house_prices)
-#all_exhaustive_model$which
-
-
-#all_exhaustive_logit_model = build_model_by_AIC_exhaustive_Logit_search(house_prices)
-#all_exhaustive_logit_model$which
-
-
-#response_transformer_model = build_response_transfomer_model(house_prices)
-#summary(response_transformer_model)
-#response_transformer_AIC_Backword_model = build_model_by_AIC_Backward_response_transformer(house_prices)
-#summary(response_transformer_AIC_Backword_model)
-#anova(response_transformer_AIC_Backword_model, response_transformer_model)
+## lm(formula = SalePrice ~ LotArea + Neighborhood + BldgType + 
+##     OverallCond + YearRemodAdd + RoofMatl + ExterQual + BsmtQual + 
+##     BsmtExposure + BedroomAbvGr + KitchenQual + FireplaceQu + 
+##     GarageFinish + PoolQC, data = data)
 
 ```
 
 
-
-
-
-# Results
-The results section should contain numerical or graphical summaries of your results. You should report a final model you have chosen. There is not necessarily one, singular correct model, but certainly some methods and models are better than others in certain situations. You may use any methods we studied this semester to complete this task, and provide evidence that your final choice of model is a good one.
-
+>We will try response transformer model.
 ```{r}
-last_model = lm(log(SalePrice) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
-                    RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
-                    Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
-                    KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
-                    BsmtFinSF2 + BsmtUnfSF + PoolArea, house_prices)
+bic_backward_response_transformer_model = lm(log(SalePrice) ~ LotArea + Neighborhood + BldgType + OverallCond + YearRemodAdd + RoofMatl + ExterQual + BsmtQual + BsmtExposure + 
+            BedroomAbvGr + KitchenQual + FireplaceQu + GarageFinish + PoolQC, house_prices_train)
+#summary(bic_backward_response_transformer_model)
 
-#poly_model = lm(log(SalePrice) ~ poly(OverallQual, 3) + poly(Neighborhood, 3) + poly(TotRmsAbvGrdpoly, 3) + poly(GarageAreapoly, 3) + poly(BsmtFinSF1poly, 3) + 
-#                   poly(RoofMatlpoly, 3) + poly(OverallCondpoly, 3) + poly(X1stFlrSFpoly, 3) + poly(X2ndFlrSFpoly, 3) + poly(YearBuiltpoly, 3) + poly(Condition2poly, 3) + 
-#                   poly(SaleConditionpoly, 3) + poly(BsmtExposurepoly, 3) + poly(KitchenAbvGrpoly, 3) + poly(LotAreapoly(LotAreapoly, 3) + poly(KitchenQualpoly, 3) + 
-#                   poly(ScreenPorchpoly, 3) + poly(Streetpoly, 3) +  poly(MSSubClasspoly, 3) + poly(PoolQCpoly, 3) + poly(BsmtFinSF2poly, 3) + poly(BsmtUnfSFpoly, 3) + poly(PoolAreapoly, 3),
-#                   house_prices)
-#poly_model = lm(log(SalePrice) ~ poly(YearBuiltpoly, 2, raw=TRUE) + poly(Neighborhood, 2, raw=TRUE) + poly(TotRmsAbvGrd, 2, raw=TRUE) + poly(GarageArea, 2, raw=TRUE) + poly(BsmtFinSF1, 2, raw=TRUE), house_prices)
+aic_backward_response_transformer_model = lm(log(SalePrice) ~ MSZoning + LotFrontage + LotArea + Street + LandContour + Utilities + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallCond + YearRemodAdd + RoofStyle + RoofMatl + Exterior1st + MasVnrType + ExterQual + BsmtQual + BsmtExposure + BsmtFinType1 + HeatingQC + BedroomAbvGr + KitchenQual + FireplaceQu + GarageFinish + GarageQual + GarageCond + PoolQC + SaleType, house_prices_train)
+```
 
-#poly_model = lm(log(SalePrice) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
-#                    RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
-#                    Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
-#                    KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
-#                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(OverallQual^2) + I(Neighborhood^2)+ I(TotRmsAbvGrd^2)+ I(GarageArea^2)+ I(BsmtFinSF1^2)+ I(RoofMatl^2)+ I(OverallCond^2)+ I(X1stFlrSF^2)+ I(X2ndFlrSF^2)+ #I(YearBuilt^2)+ I(Condition2^2)+ I(SaleCondition^2)+ I(BsmtExposure^2)+ I(KitchenAbvGr^2)+ I(LotArea^2)+ I(KitchenQual^2)+ I(ScreenPorch^2)+ I(Street^2)+ I(MSSubClass^2)+ I(PoolQC^2)+ I(PoolQC^2)+ I(BsmtFinSF2^2)+ #I(BsmtUnfSF^2)+ I(PoolArea^2) , house_prices)
 
+
+> Stepwise Search to selcte the model.
+```{r}
+build_model_from_stepwise_Search = function(data){
+  allpredictors = names(data)
+  scope_string = as.formula(paste(response, paste(allpredictors, collapse=" + "), sep=" ~ ")) 
+  start_model = lm(log(SalePrice) ~ 1, data)   
+  n = nrow(data)
+  model = step(start_model, scope = scope_string, direction = "both", k= log(n), trace = 0)
+  model   
+}
+
+ stepwise_Search_model = build_model_from_stepwise_Search(house_prices_train)
+ summary(stepwise_Search_model)
+```
+
+
+> Predictor transformer
+```{r}
 poly_model = lm(log(SalePrice) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
                     RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
                     Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
                     KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
-                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices)
+                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices_train)
 
 addi_model = lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
                     RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
                     Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
                     KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
-                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices)
-
-boxcox(last_model, plotit = TRUE, lambda = seq(0.5, 10.5, by = 0.1))
-#summary(final_model)
+                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices_train)
 
 ```
+
+> Box-Cox transformer
+```{r}
+#bic_backward_model = lm(log(SalePrice) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
+#                    RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
+#                    Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
+#                    KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
+#                    BsmtFinSF2 + BsmtUnfSF + PoolArea, house_prices_train)
+                    
+boxcox(bic_backward_response_transformer_model, plotit = TRUE)
+
+boxcox(addi_model, plotit = TRUE)
+
+
+
+addi_boxcox_model = lm((((SalePrice ^ 0.3) - 1) / 0.3) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
+                    RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
+                    Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
+                    KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
+                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices_train)
+
+
+poly_boxcox_model = lm(((log(SalePrice)^4.4 - 1) / 4.4) ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageArea + BsmtFinSF1 + 
+                    RoofMatl + OverallCond + X1stFlrSF + X2ndFlrSF + YearBuilt + 
+                    Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
+                    KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
+                    BsmtFinSF2 + BsmtUnfSF + PoolArea + I(LotArea^2) +  I(YearBuilt^2)+ I(GarageArea^2), house_prices_train)
+```
+
+
+
+
+
+> Let's do some testing for those models.
 
 ```{r}
 fitted_versus_residuals_plot = function(fit){
@@ -613,29 +545,72 @@ QQ_plot = function(fit){
    
 }
 
-fit_model_test = function(model){
-   par(mfrow = c(1, 2))
-   fitted_versus_residuals_plot(model)
-   QQ_plot(model)
+
+
+fit_model_test = function(model, title){
+   #par(mfrow = c(1, 2))
+   #fitted_versus_residuals_plot(model)
+   #QQ_plot(model)
+   par(mfrow = c(2, 2))
+   plot(model, main = title)
    
-   shapiro.test((resid(model)))
+   
 }
 ```
 
 
+```{r}
+fit_model_test(additive_model, "Additive Model")
+fit_model_test(additive_modified_model, "Additive Modified Model")
+fit_model_test(aic_backward_model, "AIC Backward Selected Model")
+fit_model_test(bic_backward_model, "BIC Backward Selected Model")
+fit_model_test(bic_backward_response_transformer_model, "BIC Response Transformer Model")
+fit_model_test(aic_backward_response_transformer_model, "AIC Response Transformer Model")
+fit_model_test(stepwise_Search_model, "Stepwise Search Model")
+fit_model_test(poly_model, "Poly Predictor transformer")
+fit_model_test(addi_model, "Additive Predictor transformer")
+fit_model_test(addi_boxcox_model, "additive boxcox model")
+fit_model_test(poly_boxcox_model, "Poly boxcox model")
+```
 
 
 ```{r}
-
-fit_model_test(last_model)
-fit_model_test(poly_model)
-fit_model_test(addi_model)
-#fit_model_test(bic_backward_model)
-#fit_model_test(response_by_BIC_result)
-#fit_model_test(bic_log_model)
-#fit_model_test(both_model_from_response_by_BIC)
-
+model_diagnostics = function(model, title){
+   print(title)
+   print(vif(model))
+   print("shapiro.test((resid(model)")  
+   print(shapiro.test((resid(model))))
+   print("loocv_rmse")
+   print(calc_loocv_rmse(model))
+   print("AIC")
+   print(extractAIC(model))
+   print("BIc")
+   print(extractAIC(model, k = log(length(resid(model)))))
+}
 ```
+
+
+```{r}
+model_diagnostics(additive_model, "Additive Model")
+model_diagnostics(additive_modified_model, "Additive Modified Model")
+model_diagnostics(aic_backward_model, "AIC Backward Selected Model")
+model_diagnostics(bic_backward_model, "BIC Backward Selected Model")
+model_diagnostics(bic_backward_response_transformer_model, "BIC Response Transformer Model")
+model_diagnostics(aic_backward_response_transformer_model, "AIC Response Transformer Model")
+model_diagnostics(stepwise_Search_model, "Stepwise Search Model")
+model_diagnostics(poly_model, "Poly Predictor transformer")
+model_diagnostics(addi_model, "Additive Predictor transformer")
+model_diagnostics(addi_boxcox_model, "additive boxcox model")
+model_diagnostics(poly_boxcox_model, "Poly boxcox model")
+```
+
+
+# Results
+The results section should contain numerical or graphical summaries of your results. You should report a final model you have chosen. There is not necessarily one, singular correct model, but certainly some methods and models are better than others in certain situations. You may use any methods we studied this semester to complete this task, and provide evidence that your final choice of model is a good one.
+
+
+
+
 
 
 # Discussion
