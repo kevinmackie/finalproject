@@ -389,13 +389,7 @@ summary {
 </div>
 <div id="library" class="section level1">
 <h1>Library</h1>
-<pre class="r"><code># If you failed to run the Markdown, you may run the following install.packages for the dependencies
-#install.packages(&quot;corrplot&quot;)
-#install.packages(&quot;kableExtra&quot;)
-#install.packages(&#39;caret&#39;, dependencies = TRUE)
-#install.packages(&#39;e1071&#39;, dependencies=TRUE)
-
-library(GGally)</code></pre>
+<pre class="r"><code>library(GGally)</code></pre>
 <pre><code>## Loading required package: ggplot2</code></pre>
 <pre><code>## Registered S3 method overwritten by &#39;GGally&#39;:
 ##   method from   
@@ -432,11 +426,18 @@ library(lmtest)</code></pre>
 <pre><code>## The following objects are masked from &#39;package:base&#39;:
 ## 
 ##     as.Date, as.Date.numeric</code></pre>
+<pre class="r"><code># If you failed to run the Markdown, you may run the following install.packages again for the dependencies
+#install.packages(&quot;corrplot&quot;)
+#install.packages(&quot;kableExtra&quot;)
+#install.packages(&#39;caret&#39;, dependencies = TRUE)
+#install.packages(&#39;e1071&#39;, dependencies=TRUE)</code></pre>
 <p>#Public method</p>
-<pre class="r"><code>ptm = proc.time()
-is_debug = TRUE
+<pre class="r"><code>is_debug = FALSE
 missing = &quot;missing&quot;
 response  = c(&quot;SalePrice&quot;)
+ptm = proc.time()
+
+
 
 calc_loocv_rmse = function(model) {
   sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
@@ -672,17 +673,6 @@ drop_only_one_level_factor = function(dataset){
 </div>
 <div id="methods" class="section level1">
 <h1>Methods</h1>
-<p>This section should contain any information about data preparation that is performed to the original data before modelling. Then you will apply methods seen in class, which may include some of the following but are not limited to:</p>
-<ul>
-<li>Multiple linear regression</li>
-<li>Dummy variables</li>
-<li>Interaction</li>
-<li>Residual diagnostics</li>
-<li>Outlier diagnostics</li>
-<li>Transformations</li>
-<li>Polynomial regression</li>
-<li>Model selection Your task is not to use as many methods as possible. Your task is to use appropriate methods to find a good model that can correctly answer a question about the dataset, and then to communicate your result effectively.</li>
-</ul>
 <div id="exploratory-data-analysis" class="section level2">
 <h2>Exploratory Data Analysis</h2>
 <blockquote>
@@ -5032,10 +5022,9 @@ additive_modified_model = build_dynamic_model(response, predictors, additive_mod
    end_log()
    aic_backward_model
 }
-aic_backward_model = build_model_by_AIC_Backward(house_prices_train)</code></pre>
-<pre><code>##    user  system elapsed 
-##  106.96    2.86  110.25</code></pre>
-<pre class="r"><code>#Result:
+aic_backward_model = build_model_by_AIC_Backward(house_prices_train)
+
+#Result:
 ## lm(formula = SalePrice ~ MSZoning + LotFrontage + LotArea + Street + 
 ##     LandContour + Utilities + LotConfig + LandSlope + Neighborhood + 
 ##     Condition1 + Condition2 + BldgType + HouseStyle + OverallCond + 
@@ -5046,13 +5035,15 @@ aic_backward_model = build_model_by_AIC_Backward(house_prices_train)</code></pre
 <blockquote>
 <p>Logit response transformer model.</p>
 </blockquote>
-<pre class="r"><code>bic_backward_response_transformer_model = lm(log(SalePrice) ~ LotArea + Neighborhood + BldgType + OverallCond + YearRemodAdd + RoofMatl + 
-      ExterQual + BsmtQual + BsmtExposure + BedroomAbvGr + KitchenQual + FireplaceQu + GarageFinish + PoolQC, house_prices_train)
+<pre class="r"><code>bic_backward_response_transformer_model = lm(log(SalePrice) ~ LotArea + Neighborhood + BldgType + OverallCond +
+   YearRemodAdd + RoofMatl + ExterQual + BsmtQual + BsmtExposure + BedroomAbvGr + KitchenQual + FireplaceQu + 
+   GarageFinish + PoolQC, house_prices_train)
 
-aic_backward_response_transformer_model = lm(log(SalePrice) ~ MSZoning + LotFrontage + LotArea + Street + LandContour + Utilities +
-      LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle + OverallCond + YearRemodAdd + RoofStyle +
-      RoofMatl + Exterior1st + MasVnrType + ExterQual + BsmtQual + BsmtExposure + BsmtFinType1 + HeatingQC + BedroomAbvGr + KitchenQual + 
-      FireplaceQu + GarageFinish + GarageQual + GarageCond + PoolQC + SaleType, house_prices_train)</code></pre>
+aic_backward_response_transformer_model = lm(log(SalePrice) ~ MSZoning + LotFrontage + LotArea + Street + 
+  LandContour + Utilities + LotConfig + LandSlope + Neighborhood + Condition1 + Condition2 + BldgType + HouseStyle +
+  OverallCond + YearRemodAdd + RoofStyle + RoofMatl + Exterior1st + MasVnrType + ExterQual + BsmtQual + BsmtExposure +
+  BsmtFinType1 + HeatingQC + BedroomAbvGr + KitchenQual + FireplaceQu + GarageFinish + GarageQual + GarageCond +
+  PoolQC + SaleType, house_prices_train)</code></pre>
 <blockquote>
 <p>Stepwise Search to select the model.</p>
 </blockquote>
@@ -5091,10 +5082,9 @@ addi_model = lm(SalePrice ~ OverallQual + Neighborhood + TotRmsAbvGrd + GarageAr
    end_log()
    model
 }
-bic_backward_model = build_model_by_BIC_Backward(house_prices_train)</code></pre>
-<pre><code>##    user  system elapsed 
-##  210.69    6.22  217.73</code></pre>
-<pre class="r"><code>## Result:
+bic_backward_model = build_model_by_BIC_Backward(house_prices_train)
+
+## Result:
 ## lm(formula = SalePrice ~ LotArea + Neighborhood + BldgType + 
 ##     OverallCond + YearRemodAdd + RoofMatl + ExterQual + BsmtQual + 
 ##     BsmtExposure + BedroomAbvGr + KitchenQual + FireplaceQu + 
@@ -5107,8 +5097,6 @@ bic_backward_model = lm(log(SalePrice) ~ OverallQual + Neighborhood + TotRmsAbvG
                     Condition2 + SaleCondition + BsmtExposure + KitchenAbvGr +  LotArea + 
                     KitchenQual + ScreenPorch + Street +  MSSubClass + PoolQC + 
                     BsmtFinSF2 + BsmtUnfSF + PoolArea, house_prices_train)
-
-
 
 Bic_model = lm(SalePrice ~ MSSubClass + LotArea + Street + Neighborhood + Condition2 + OverallQual + 
     OverallCond + YearBuilt + RoofMatl + MasVnrArea + ExterQual + BsmtQual + BsmtExposure + BsmtFinSF2 + 
@@ -5226,7 +5214,7 @@ model_diagnostics = function(models){
    }      
    
    result = data.frame(model = modelname, shapiro_test = format(shappiro, scientific=T), LOOCV_MSE =loocvrmse, 
-                          AIC = aicvalue, BIC = bicvalue, adj.r.quared=adjrsquared, bptest = bptestvalue, r.quared=rsquared)   
+                          AIC = aicvalue, BIC = bicvalue, adj.r.squared=adjrsquared, bptest = bptestvalue, r.squared=rsquared)   
    model_model_diagnostics_table(result)
 }</code></pre>
 </div>
@@ -5317,13 +5305,13 @@ AIC
 BIC
 </th>
 <th style="text-align:right;">
-adj.r.quared
+adj.r.squared
 </th>
 <th style="text-align:right;">
 bptest
 </th>
 <th style="text-align:right;">
-r.quared
+r.squared
 </th>
 </tr>
 </thead>
@@ -5702,11 +5690,14 @@ summary(boxcoxbycaret)</code></pre>
 ## summary  6      summaryDefault numeric
 ## ratio    1      -none-         numeric
 ## skewness 1      -none-         numeric</code></pre>
-<pre class="r"><code>boxcoxbycaret_model = lm((SalePrice - 1) ~ LotArea + Neighborhood + BldgType + OverallQual + OverallCond + YearBuilt + MasVnrArea + ExterQual + BsmtQual + 
-     BsmtExposure + BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + BedroomAbvGr + KitchenQual + Functional + GarageCars + SaleCondition, data = Bic_model_data)
+<pre class="r"><code>boxcoxbycaret_model = lm((SalePrice - 1) ~ LotArea + Neighborhood + BldgType + OverallQual + OverallCond + YearBuilt + 
+    MasVnrArea + ExterQual + BsmtQual + BsmtExposure + BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    BedroomAbvGr + KitchenQual + Functional + GarageCars + SaleCondition, data = Bic_model_data)
 
-model_list = list(list(model = final_model, main = &quot;Final Model&quot;, shapirotestdata = predict(final_model, newdata = Bic_model_data)),
-                  list(model = boxcoxbycaret_model, main = &quot;Box-Cox by Caret Model&quot;, shapirotestdata = predict(boxcoxbycaret_model, newdata = Bic_model_data)) )</code></pre>
+model_list = list(list(model = final_model, main = &quot;Final Model&quot;, 
+                         shapirotestdata = predict(final_model, newdata = Bic_model_data)),
+                  list(model = boxcoxbycaret_model, main = &quot;Box-Cox by Caret Model&quot;, 
+                         shapirotestdata = predict(boxcoxbycaret_model, newdata = Bic_model_data)) )</code></pre>
 <pre><code>## Warning in predict.lm(final_model, newdata = Bic_model_data): prediction
 ## from a rank-deficient fit may be misleading</code></pre>
 <pre><code>## Warning in predict.lm(boxcoxbycaret_model, newdata = Bic_model_data):
@@ -5731,13 +5722,13 @@ AIC
 BIC
 </th>
 <th style="text-align:right;">
-adj.r.quared
+adj.r.squared
 </th>
 <th style="text-align:right;">
 bptest
 </th>
 <th style="text-align:right;">
-r.quared
+r.squared
 </th>
 </tr>
 </thead>
