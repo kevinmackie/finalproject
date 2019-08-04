@@ -216,7 +216,7 @@ get_adj_r2 = function(model) {
 }
 
 kfold_cv = function(data, model, k, log_response = FALSE) {
-  set.seed(420)
+  set.seed(600)
   # Get indices for k folds (the data to be held out)
   holdouts = split(sample(1:nrow(data)), 1:k)
   
