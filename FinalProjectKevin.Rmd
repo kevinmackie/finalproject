@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ***
@@ -170,11 +170,9 @@ Also, note that two of the variables in the data are `OverallQual` and `OverallC
 
 We will be using the presence of descriptive paragraphs such as these to support my ability to include these two variables under my hypothesis. Essentially we will be assuming that the score given by `OverallCond` and `OverallQual` is more or less an accurate heuristic for converting these sorts of descriptions into a number.
 
-***
-
 ## Library
 
-```{r, message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 library(tidyverse)
 library(lmtest)
 library(faraway)
@@ -192,8 +190,6 @@ library(outliers)
 library(ggplot2)
 library(ggthemes)
 ```
-
-***
 
 ## Public Functions
 
@@ -242,8 +238,6 @@ kfold_cv = function(data, model, k, log_response = FALSE) {
 }
 
 ```
-
-***
 
 ## Loading the data
 
@@ -492,6 +486,8 @@ corrplot(correlation, type = "upper", tl.pos = "td",
 ```
 
 Indeed, we see here that the number of full baths is strongly positively correlated with with general living area and overall quality of the home. Since both of those variables are already in our model, it is not surprising that full bath is somewhat superfluous.
+
+***
 
 # Results
 
