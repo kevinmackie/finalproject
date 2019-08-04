@@ -12,82 +12,10 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 ***
 
 ## Group members
+
 - Shane Taylor shanemt2@illinois.edu 
 - Zhouning Ma zm11@illinois.edu 
 - Kevin Mackie kevindm2@illinois.edu
-
-***
-
-### Library
-
-```{r, message=FALSE, warning=FALSE}
-library(tidyverse)
-library(lmtest)
-library(faraway)
-library(MASS)
-library(corpcor)
-library(corrplot)
-library(ggcorrplot)
-
-library(GGally)
-library(leaps)
-library(knitr)
-library(kableExtra)
-library(caret)
-library(outliers)
-library(ggplot2)
-library(ggthemes)
-```
-
-***
-
-### Public Functions
-
-```{r}
-diagnostics = function(model, pcol = "grey", lcol = "dodgerblue"){
-  par(mfrow = c(1,2))
-  plot(fitted(model), resid(model), col = pcol, pch = 20,
-       xlab = "Fitted", ylab = "Residuals", main = paste("Fitted Vs Residuals"))
-  abline(h = 0, col = lcol, lwd = 2)
-  qqnorm(resid(model), col = pcol)
-  qqline(resid(model), lty = 2, lwd = 2, col = lcol)
-}
-
-mape = function(actual, pred){
-  mean(abs((actual - pred) / actual)) * 100
-}
-
-get_loocv_rmse = function(model) {
-  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
-}
-
-get_adj_r2 = function(model) {
-  summary(model)$adj.r.squared
-}
-
-kfold_cv = function(data, model, k, log_response = FALSE) {
-  set.seed(420)
-  # Get indices for k folds (the data to be held out)
-  holdouts = split(sample(1:nrow(data)), 1:k)
-  
-  total_mape = 0
-  
-  # Now for each holdout fit a model to the data not held out, and test against held out data
-  for (holdout in holdouts) {
-    train = data[-c(holdout),]
-    test = data[c(holdout),]
-    m = lm(formula(model), data = train)
-    pred = predict(m, newdata = test)
-    if (log_response) {
-      total_mape = total_mape + mape(test$SalePrice, exp(pred))
-    } else {
-      total_mape = total_mape + mape(test$SalePrice, pred)
-    }
-  }
-  total_mape / k
-}
-
-```
 
 ***
 
@@ -244,6 +172,79 @@ We will be using the presence of descriptive paragraphs such as these to support
 
 ***
 
+## Library
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lmtest)
+library(faraway)
+library(MASS)
+library(corpcor)
+library(corrplot)
+library(ggcorrplot)
+
+library(GGally)
+library(leaps)
+library(knitr)
+library(kableExtra)
+library(caret)
+library(outliers)
+library(ggplot2)
+library(ggthemes)
+```
+
+***
+
+## Public Functions
+
+```{r}
+diagnostics = function(model, pcol = "grey", lcol = "dodgerblue"){
+  par(mfrow = c(1,2))
+  plot(fitted(model), resid(model), col = pcol, pch = 20,
+       xlab = "Fitted", ylab = "Residuals", main = paste("Fitted Vs Residuals"))
+  abline(h = 0, col = lcol, lwd = 2)
+  qqnorm(resid(model), col = pcol)
+  qqline(resid(model), lty = 2, lwd = 2, col = lcol)
+}
+
+mape = function(actual, pred){
+  mean(abs((actual - pred) / actual)) * 100
+}
+
+get_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+
+get_adj_r2 = function(model) {
+  summary(model)$adj.r.squared
+}
+
+kfold_cv = function(data, model, k, log_response = FALSE) {
+  set.seed(420)
+  # Get indices for k folds (the data to be held out)
+  holdouts = split(sample(1:nrow(data)), 1:k)
+  
+  total_mape = 0
+  
+  # Now for each holdout fit a model to the data not held out, and test against held out data
+  for (holdout in holdouts) {
+    train = data[-c(holdout),]
+    test = data[c(holdout),]
+    m = lm(formula(model), data = train)
+    pred = predict(m, newdata = test)
+    if (log_response) {
+      total_mape = total_mape + mape(test$SalePrice, exp(pred))
+    } else {
+      total_mape = total_mape + mape(test$SalePrice, pred)
+    }
+  }
+  total_mape / k
+}
+
+```
+
+***
+
 ## Loading the data
 
 We load the "train.csv" file and observe the available variables.
@@ -253,7 +254,7 @@ house_prices_full = read.csv("train.csv")
 #str(house_prices_full)
 ```
 
-Note that there is also a test.csv file, but it does not contain the `SalePrice` response variable. We split the data from "train.csv" randomly into a 75/25 train/test split as `house_prices` and `house_prices_test`. We will train our models on `house_prices` and evaluate our final model in terms of how well it works to make predictions on `house_prices_test`.
+Note that there is also a "test.csv" file, but it does not contain the `SalePrice` response variable. We split the data from "train.csv" randomly into a 75/25 train/test split as `house_prices` and `house_prices_test`. We will train our models on `house_prices` and evaluate our final model in terms of how well it works to make predictions on `house_prices_test`.
 
 ```{r}
 set.seed(08032019)
@@ -295,10 +296,10 @@ house_prices.lm = lm(SalePrice ~ GrLivArea + LotArea + GarageArea + BedroomAbvGr
 We then test this model using a training data set and a k-fold cross validation.
 
 ```{r}
-(mape = kfold_cv(house_prices, house_prices.lm, 5))
+(mape1 = kfold_cv(house_prices, house_prices.lm, 5))
 ```
 
-The reported error for this initial model is `r mape`. 
+The reported error for this initial model is `r mape1`. 
 
 ### Model diagnostics
 
@@ -324,10 +325,10 @@ It appears that a log transformation of the response did help make the distribut
 We now check this new model's MAPE for accuracy:
 
 ```{r}
-(mape = kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE))
+(mape2 = kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE))
 ```
 
-We see that this model's error of `r mape`% has improved slightly relative to the original (non-log-transformed) version. 
+We see that this model's error of `r mape2`% has improved slightly relative to the original (non-log-transformed) version. 
 
 ## Significance of predictors
 
@@ -358,10 +359,10 @@ The variance looks consistent from left to right. When looking at the Q-Q Plot w
 We also check cross-validated MAPE:
 
 ```{r}
-(mape = kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE))
+(mape3 = kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE))
 ```
 
-We see that the performance of our regression continues to improve, with a cross-validated MAPE of `r mape`. 
+We see that the performance of our regression continues to improve, with a cross-validated MAPE of `r mape3`. 
 
 ## Analysis of outliers
 
@@ -388,10 +389,10 @@ Removing this one observation did improve the Normal Q-Q plot, but not enough to
 We check the new model accuracy:
 
 ```{r}
-(mape = kfold_cv(house_prices[-influential_indices[1],], house_prices_outliers_removed.lm, 547, log_response = TRUE))
+(mape4 = kfold_cv(house_prices[-influential_indices[1],], house_prices_outliers_removed.lm, 547, log_response = TRUE))
 ``` 
 
-With the removal of a single bad observation we have improved the model performance substantially. We now have a MAPE of `r mape`, exceeding our original goal for the project. We have a very good model for prediction performance.
+With the removal of a single bad observation we have improved the model performance substantially. We now have a MAPE of `r mape4`, exceeding our original goal for the project. We have a very good model for prediction performance.
 
 ## Removal of outliers to correct violations of LINE assumptions
 
@@ -422,10 +423,10 @@ We now look at how this model based on removing outliers performs using k-fold c
 
 ```{r}
 length(coef(house_prices_outliers_removed.lm))
-(mape = kfold_cv(house_prices[-influential_indices, ], house_prices_outliers_removed.lm, 6, log_response = TRUE))
+(mape5 = kfold_cv(house_prices[-influential_indices, ], house_prices_outliers_removed.lm, 6, log_response = TRUE))
 ``` 
 
-Our k-fold cross-validation shows that performance on this model is very good, `r mape`%.
+Our k-fold cross-validation shows that performance on this model is very good, `r mape5`%.
 
 ***
 
@@ -449,8 +450,10 @@ summary(house_prices_outliers_removed.lm)
 
 ```{r}
 length(coef(house_prices_outliers_removed.lm))
-(mape = kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE))
+(mape6 = kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE))
 ```
+
+We see that AIC performance is marginally better (`r mape6`) with one fewer predictor (full bath).
 
 ### Backwards BIC
 
@@ -464,10 +467,12 @@ summary(house_prices_outliers_removed.lm)
 
 ```{r}
 length(coef(house_prices_outliers_removed.lm))
-(mape = kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE))
+(mape7 = kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE))
 ```
 
-We see that the resulting model performs well (only fractionally better than our originally proposed model), and uses one less predictor (full bath) than our original model.
+We see that the resulting model performs well (`r mape7` - only fractionally better than our originally proposed model), and uses one less predictor (full bath) than our original model.
+
+This is identical to the AIC-based model, above.
 
 ### Analysis of correlation
 
@@ -488,7 +493,11 @@ corrplot(correlation, type = "upper", tl.pos = "td",
 
 Indeed, we see here that the number of full baths is strongly positively correlated with with general living area and overall quality of the home. Since both of those variables are already in our model, it is not surprising that full bath is somewhat superfluous.
 
-## Results
+# Results
+
+We have selected a final model and validated its performance and adherence to LINE assumptions. We finally demonstrate the performance of the model and its diagnostics. 
+
+## Performance against held out 25% of test data
 
 Let's see how this model performs for making predictions against our test data.
 
@@ -503,19 +512,13 @@ house_prices_prediction = exp(predict(house_prices_outliers_removed.lm,
 
 ```
 
-Let's see a histogram of the errors
-
-```{r}
-hist(house_prices_test$SalePrice - house_prices_prediction, breaks = 50, freq = FALSE)
-```
-
-We can see that the majority of the error is centered around 0, indicating that the error is often close to 0.
-
 ```{r}
 mape(actual = house_prices_test$SalePrice, house_prices_prediction)
 ```
 
-A `r round(mape(actual = house_prices_test$SalePrice, house_prices_prediction), 2)`% error falls within our target goal interval.
+A `r round(mape(actual = house_prices_test$SalePrice, house_prices_prediction), 2)`% error falls within our target goal interval of 15% and ideally under 10%. We did not remove outliers from the test data and so it is not surprising that performance is slightly worse than we we saw during cross-validated testing of our training set.
+
+## Final model diagnostics (for LINE assumptions)
 
 One of our other goal was for the the model to adhere to LINE assumptions. We can see in the Fitted Vs Residuals and Q-Q Plot that the model demonstrates both normality and relatively constant variance.
 
@@ -523,66 +526,38 @@ One of our other goal was for the the model to adhere to LINE assumptions. We ca
 diagnostics(house_prices_outliers_removed.lm)
 ```
 
-We will also check the `loocv_rmse`...
+### Adjusted R-squared
 
-```{r}
-get_loocv_rmse(house_prices_outliers_removed.lm)
-```
-
- and the Adjusted $R^2$ value
+Adjusted $R^2$ value is:
 
 ```{r}
 get_adj_r2(house_prices_outliers_removed.lm)
 ```
 
-From both values we can see that the model performs well by multiple metrics.
+The model is excellent from this standpoint, with over 92% of the variance in responses being accounted for by our regression.
 
-Next let's check for any multicollinearity issues.
+### Collinearity
+
+Finally, we wanted to ensure that our model was stable and did not contain collinearity.
+
+We calculate the Variance Inflation Factor for our parameters.
 
 ```{r}
 vif(house_prices_outliers_removed.lm)
 ```
 
-We can see that all of vif's are less than 5, indicating that multicollinearity should not be an issue with the model with the interactions included.
+We can see that all of vif's are less than 5, indicating that multicollinearity should not be an issue with the model.
 
 ***
 
-## Discussion
+# Discussion
 
-Since all of the houses in this data set came from the same geographic area (Ames, Iowa), we can assume that the physical characteristics of the house determined its price, as opposed to the comparison of prices being driven by the housing market in which it resides (i.e. comparing prices in completely different markets, such as, South Dakota and southern California). One of the benefits of using this data set is that most of us have a decent amount of practical experience with housing prices in our lives, which gives us a pretty good intuition for what determines the price of a house. 
+Due to the overwhelming number of variables in this data set, we felt it was best to select a probable set of variables based on domain insight gleaned from study of real estate websites. We used statistical analysis to confirm our choices and to tune the model appropriately. The reasoning being this approach is simple: the things that a buyer values in a home are likely propotional to the cost. Real estate offices and websites have likely narrowed down the things that are important to buyers so that the buyers can find a home easily and make a purchase through them. 
 
-Due to the overwhelming number of variables in this data set, it occured to us that as opposed to just wandering around in the dark, one way to go about this would be to make use of real estate websites. The reasoning for this is that monetary value is often dependent on personal worth. A product only exists within the economic market if it can support the supply:demand economic relationship, which is based on the personal_worth:finalcial_cost relationship at the individual level. Thus, by transitivity, the things that a buyer values in a home are likely propotional in some way to the cost. Real estate offices and websites have likely narrowed down the things that are important to buyers so that the buyers can find a home easily and make a purchase through them, so it made sense to make use of these assumptions. 
+Since all of the houses in this data set came from the same geographic area (Ames, Iowa), we can assume that the physical characteristics of the house determined its price, as opposed to the comparison of prices being driven by the housing market in which it resides (i.e. comparing prices in completely different markets, such as, South Dakota and southern California). 
 
-As we could see with the small average percent error, the characteristics most prominently featured on a real estate website were highly correlated with the price of the home. In conclusion, the model performs well across multiple metrics, seems to mostly adhere to LINE assumptions, and makes relatively accurate predictions. This gives evidence to support the hypothesis that a good model can be made from the most prominent features displayed on real estate websites.
+Our approach was incremental, starting with a proposed model and then using cross-validation and model diagnostics to continually refine the model and improve its characteristics. 
 
+As we could see from the small average percent error and high $R^2$ of our model, the characteristics most prominently featured on a real estate website were highly correlated with the price of the home. 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+In conclusion, the model performs well across multiple metrics, adhere adequately to LINE assumptions, and makes quite accurate predictions. This gives evidence to support the hypothesis that a good model can be made from the most prominent features displayed on real estate websites.
