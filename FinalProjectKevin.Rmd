@@ -1,0 +1,539 @@
+---
+title: "FinalProject_Shane"
+date: "8/3/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+## Group members
+- Shane Taylor shanemt2@illinois.edu 
+- Zhouning Ma zm11@illinois.edu 
+- Kevin Mackie kevindm2@illinois.edu
+
+***
+
+### Library
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lmtest)
+library(faraway)
+library(MASS)
+library(corpcor)
+library(corrplot)
+library(ggcorrplot)
+
+library(GGally)
+library(leaps)
+library(knitr)
+library(kableExtra)
+library(caret)
+library(outliers)
+library(ggplot2)
+library(ggthemes)
+```
+
+***
+
+### Public Functions
+
+```{r}
+diagnostics = function(model, pcol = "grey", lcol = "dodgerblue"){
+  par(mfrow = c(1,2))
+  plot(fitted(model), resid(model), col = pcol, pch = 20,
+       xlab = "Fitted", ylab = "Residuals", main = paste("Fitted Vs Residuals"))
+  abline(h = 0, col = lcol, lwd = 2)
+  qqnorm(resid(model), col = pcol)
+  qqline(resid(model), lty = 2, lwd = 2, col = lcol)
+}
+
+mape = function(actual, pred){
+  mean(abs((actual - pred) / actual)) * 100
+}
+
+get_loocv_rmse = function(model) {
+  sqrt(mean((resid(model) / (1 - hatvalues(model))) ^ 2))
+}
+
+get_adj_r2 = function(model) {
+  summary(model)$adj.r.squared
+}
+
+kfold_cv = function(data, model, k, log_response = FALSE) {
+  set.seed(420)
+  # Get indices for k folds (the data to be held out)
+  holdouts = split(sample(1:nrow(data)), 1:k)
+  
+  total_mape = 0
+  
+  # Now for each holdout fit a model to the data not held out, and test against held out data
+  for (holdout in holdouts) {
+    train = data[-c(holdout),]
+    test = data[c(holdout),]
+    m = lm(formula(model), data = train)
+    pred = predict(m, newdata = test)
+    if (log_response) {
+      total_mape = total_mape + mape(test$SalePrice, exp(pred))
+    } else {
+      total_mape = total_mape + mape(test$SalePrice, pred)
+    }
+  }
+  total_mape / k
+}
+
+```
+
+***
+
+# Introduction
+The data, which was found on Kaggle, is a publicly available data set on housing prices in the city of Ames, Iowa that was curated by Dean De Cock of Truman state university.
+
+* https://www.kaggle.com/c/house-prices-advanced-regression-techniques/overview
+* http://jse.amstat.org/v19n3/decock.pdf
+
+It consists of 1460 observations with one numerical response (house price) and 80 predictors. The predictors are a relatively even mix of numerical and categorical variables.
+
+Here's a brief version of what you'll find in the data description file.
+
+- SalePrice - the property's sale price in dollars. This is the target variable that you're trying to predict.
+- MSSubClass: The building class - # what do 20, 60, 70, etc.... represent?
+- MSZoning: The general zoning classification : factors = { C (all), FV, RH, RL, RM }
+- LotFrontage: Linear feet of street connected to property
+- LotArea: Lot size in square feet
+- Street: Type of road access : factors = { Grvl, Pave }
+- Alley: Type of alley access : factors = { Grvl, Pave }
+- LotShape: General shape of property : factors = { IR1, IR2, IR3, Reg }
+- LandContour: Flatness of the property : factors = { Bnk, HLS, Low, Lvl }
+- Utilities: Type of utilities available : factors = { AllPub, NoSeWa }
+- LotConfig: Lot configuration : factors = { Corner, CulDSac, FR2, FR3, Inside }
+- LandSlope: Slope of property : factors = { Gtl, Mod, Sev }
+- Neighborhood: Physical locations within Ames city limits : factors = { Blmngtn, Blueste, ...}
+- Condition1: Proximity to main road or railroad : factors = { Artery, Feedr, Norm, PosA, ...}
+- Condition2: Proximity to main road or railroad (if a second is present) : factors = { Artery, Feedr, ... }
+- BldgType: Type of dwelling : factors = { 1Fam, 2fmCon, Duplex, Twnhs, TwnhsE }
+- HouseStyle: Style of dwelling : factors = { 1.5Fin, 1.5Unf, 1Story, 2.5Fin, 2.5Unf, 2Story, SFoyer, SLvl }
+- OverallQual: Overall material and finish quality
+- OverallCond: Overall condition rating
+- YearBuilt: Original construction date
+- YearRemodAdd: Remodel date
+- RoofStyle: Type of roof : factors = { Flat, Gable, Gambrel, Hip, Mansard, Shed }
+- RoofMatl: Roof material : factors = { ClyTile, CompShg, Membran, Metal, Roll, Tar&Grv, WdShake, WdShngl }
+- Exterior1st: Exterior covering on house : factors = { AsbShng, AsphShn, BrkComm, BrkFace, CBlock, ... }
+- Exterior2nd: Exterior covering on house (if more than one material) : factors = { AsbShng, AsphShn, ... }
+- MasVnrType: Masonry veneer type : factors = { BrkCmn, BrkFace, None, Stone }
+- MasVnrArea: Masonry veneer area in square feet
+- ExterQual: Exterior material quality : factors = { Ex, Fa, Gd, TA }
+- ExterCond: Present condition of the material on the exterior : factors = { Ex, Fa, Gd, Po, TA }
+- Foundation: Type of foundation : factors = { BrkTil, CBlock, PConc, Slab, Stone, Wood }
+- BsmtQual: Height of the basement : factors = { Ex, Fa, Gd, TA }
+- BsmtCond: General condition of the basement : factors = { Fa, Gd, Po, TA }
+- BsmtExposure: Walkout or garden level basement walls : factors = { Av, Gd, Mn, No }
+- BsmtFinType1: Quality of basement finished area : factors = { ALQ, BLQ, GLQ, LwQ, Rec, Unf }
+- BsmtFinSF1: Type 1 finished square feet
+- BsmtFinType2: Quality of second finished area (if present) : factors = { ALQ, BLQ, GLQ, LwQ, Rec, Unf }
+- BsmtFinSF2: Type 2 finished square feet
+- BsmtUnfSF: Unfinished square feet of basement area
+- TotalBsmtSF: Total square feet of basement area
+- Heating: Type of heating : factors = { Floor, GasA, GasW, Grav, OthW, Wall }
+- HeatingQC: Heating quality and condition : factors = { Ex, Fa, Gd, Po, TA }
+- CentralAir: Central air conditioning : factors = { N, Y }
+- Electrical: Electrical system : factors = { FuseA, FuseF, FuseP, Mix, SBrkr }
+- 1stFlrSF: First Floor square feet
+- 2ndFlrSF: Second floor square feet
+- LowQualFinSF: Low quality finished square feet (all floors)
+- GrLivArea: Above grade (ground) living area square feet
+- BsmtFullBath: Basement full bathrooms
+- BsmtHalfBath: Basement half bathrooms
+- FullBath: Full bathrooms above grade
+- HalfBath: Half baths above grade
+- Bedroom: Number of bedrooms above basement level
+- Kitchen: Number of kitchens
+- KitchenQual: Kitchen quality : factors = { Ex, Fa, Gd, TA }
+- TotRmsAbvGrd: Total rooms above grade (does not include bathrooms)
+- Functional: Home functionality rating : factors = { Maj1, Maj2, Min1, Min2, Mod, Sev, Typ }
+- Fireplaces: Number of fireplaces
+- FireplaceQu: Fireplace quality : factors = { Ex, Fa, Gd, Po, TA }
+- GarageType: Garage location : factors = { 2Types, Attchd, Basment, BuiltIn, CarPort, Detchd }
+- GarageYrBlt: Year garage was built
+- GarageFinish: Interior finish of the garage : factors = { Fin, RFn, Unf }
+- GarageCars: Size of garage in car capacity
+- GarageArea: Size of garage in square feet
+- GarageQual: Garage quality : factors = { Ex, Fa, Gd, Po, TA }
+- GarageCond: Garage condition : factors = { Ex, Fa, Gd, Po, TA }
+- PavedDrive: Paved driveway : factors = { N, P, Y }
+- WoodDeckSF: Wood deck area in square feet
+- OpenPorchSF: Open porch area in square feet
+- EnclosedPorch: Enclosed porch area in square feet
+- 3SsnPorch: Three season porch area in square feet
+- ScreenPorch: Screen porch area in square feet
+- PoolArea: Pool area in square feet
+- PoolQC: Pool quality : factors = { Ex, Fa, Gd }
+- Fence: Fence quality : factors = { GdPrv, GdWo, MnPrv, MnWw }
+- MiscFeature: Miscellaneous feature not covered in other categories : factors = { Gar2, Othr, Shed, TenC }
+- MiscVal: $Value of miscellaneous feature
+- MoSold: Month Sold
+- YrSold: Year Sold
+- SaleType: Type of sale : factors = { COD, Con, ConLD, ConLI, ConLw, CWD, New, Oth, WD }
+- SaleCondition: Condition of sale : factors = { Abnorml, AdjLand, Alloca, Family, Normal, Partial }
+
+For this project our goal will be to attempt to find a "good model" (see below) using a variety of methods that both performs well and is good for explanatory purposes.
+
+A "**good model**" should:
+
+* Have a Mean Absolute Percentage Error less than 15%, and preferably 10% or lower
+* Adhere to LINE assumptions for linear regression i.e. has constant variance and demonstrates normality
+* Has no destabilizing collinearity among the predictors i.e. no VIF >= 5
+
+
+***
+
+### Utilizing Real Estate Websites Approach
+
+
+$$
+\begin{align*}
+Hypothesis : \ \ &\text{Using only the characteristics most prominently displayed across typical real estate websites,}\\
+&\text{we can build a "good" (as described above) linear model for predicting home prices.}
+\end{align*}
+$$
+Looking at the default view of some of the listings on realtor.com, we can see that the following information is displayed.
+
+![](defaultchar.png)
+
+- \# of bed rooms
+- \# of bath rooms
+- Total square footage
+- Lot square footage (some listings only)
+
+Going on other realtor websites such as zillow.com, redfin.com, etc... also show similar data for each listing. The fact that all of these different websites display the same default data tells me that it is likely that these are the most important aspects of a house for a potential buyer, so under our hypothesis we would like to assume these are highly correlated with the sale price. 
+
+Additionally, all of the various realtor websites let you specify whether you want a condo, a house, an aparment, etc... which indicate that these are important characteristics as well. 
+
+![](proptype.PNG)
+
+The top options under the filters include the age of home, the number of stories, and whether it has heating or cooling.
+
+![](topfilters.PNG)
+
+Taking all of this into account, we will build a model using the information most prominently featured on realtor websites. The initial numeric variables that we will use in this approach are the square footage of the house, the lot size, the age of the home, and the number of bathrooms and bedrooms. As far as the factor variables go, the ones that seem the most likely to determine price is the type of building (`BldgType`), the style of the home (`HouseStyle`), and the inclusion of heating and central AC. 
+
+Also, note that two of the variables in the data are `OverallQual` and `OverallCond`. It's not too much of a stretch to assume that the overall quality of the construction of the house, and the condition of the house would also factor into the asking price for the home. But the way this information is displayed on the website is not with a number, but typically with a paragraph or two, such as:
+
+
+![](propertydetails.PNG)
+
+
+We will be using the presence of descriptive paragraphs such as these to support my ability to include these two variables under my hypothesis. Essentially we will be assuming that the score given by `OverallCond` and `OverallQual` is more or less an accurate heuristic for converting these sorts of descriptions into a number.
+
+***
+
+## Methods for Building the model
+
+All of the characteristics described above refer to the following variables in the data:
+
+- GrLivArea: Above grade (ground) living area square feet
+- LotArea: Lot size in square feet
+- TotalBsmtSF: Total square feet of basement area
+- BsmtUnfSF: Unfinished square feet of basement area
+- GarageArea: Size of garage in square feet
+- BedroomAbvGr: Number of bedrooms above basement level
+- FullBath: Full bathrooms above grade
+- HalfBath: Half baths above grade
+- BsmtFullBath: Basement full bathrooms
+- BsmtHalfBath: Basement half bathrooms
+- BldgType: Type of dwelling : factors = { 1Fam, 2fmCon, Duplex, Twnhs, TwnhsE }
+- HouseStyle: Style of dwelling : factors = { 1.5Fin, 1.5Unf, 1Story, 2.5Fin, 2.5Unf, 2Story, SFoyer, SLvl }
+- OverallQual: Overall material and finish quality
+- OverallCond: Overall condition rating
+- YearBuilt: Original construction date
+- Heating: Type of heating : factors = { Floor, GasA, GasW, Grav, OthW, Wall }
+- CentralAir: Central air conditioning : factors = { N, Y }
+
+```{r}
+house_prices_full = read.csv("train.csv")
+```
+
+Note that "test.csv" does not contain the `SalePrice` response variable, so we will be splitting the "train.csv" data 75/25 randomly into `house_prices` and `house_prices_test` and evaluating our model based off how well our model works to make predictions on `house_prices_test`.
+
+```{r}
+set.seed(08032019)
+house_prices_idx  = sample(nrow(house_prices_full), size = trunc(0.75 * nrow(house_prices_full)))
+house_prices = house_prices_full[house_prices_idx, ]
+house_prices_test = house_prices_full[-house_prices_idx, ]
+```
+
+
+We will first build a large additive model including all of the above predictors.
+
+```{r}
+house_prices.lm = lm(SalePrice ~ GrLivArea + LotArea + GarageArea + BedroomAbvGr + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + HouseStyle + CentralAir + Heating, data = house_prices)
+
+```
+
+Let's look at the Fitted Vs Residuals Plot and the Normal Q-Q Plot.
+
+```{r}
+diagnostics(house_prices.lm)
+```
+
+We also check cross-validated MAPE: 
+
+```{r}
+kfold_cv(house_prices, house_prices.lm, 5)
+```
+
+We can see that the constant variance assumption seems to be violated since the variation increases as you move to the right, but it's clear that the there is an underlying pattern to the variance, indicating that a transformation might be applicable. Since the variation seems to grow exponentially as it moves to the right, this tells me that a log transformation is probably the best bet.
+
+```{r}
+house_prices.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + BedroomAbvGr + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + HouseStyle + CentralAir + Heating, data = house_prices)
+diagnostics(house_prices.lm)
+```
+
+So it does appear that a log transformation of the response helped make the variation much more stable than before. Let's check how the model is doing so far. Let's take a look at the coefficients. We will be using an $\alpha = 0.10$ for significance.
+
+We also check cross-validated MAPE: 
+
+```{r}
+kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE)
+```
+
+
+```{r}
+summary(house_prices.lm)
+```
+
+Notice that there are numerous $\beta$-parameters with a high p-value, such as for `BedroomAbvGr`, `Heating`, and `HouseStyle`. Let's attempt to remove these and see if our model improves.
+
+```{r}
+house_prices.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + CentralAir, data = house_prices)
+summary(house_prices.lm)
+```
+
+Now all of our $\beta$-parameters, apart from the dummy variable for `BldgType2fmCon` seem to be significant, but because the other dummy variables seem to be significant, we'll leave `BldgType` in. 
+
+Let's look at the Fitted Vs Residuals and the Q-Q Plot for this new model
+
+```{r}
+diagnostics(house_prices.lm)
+```
+
+We check cross-validated MAPE:
+
+```{r}
+kfold_cv(house_prices, house_prices.lm, 5, log_response = TRUE)
+```
+
+The variance looks consistent from left to right. When looking at the Q-Q Plot we can see that there seems to be some significant deviation from the line towards the left side of the graph. 
+
+### Analysis of outliers
+
+We examune a plot showing leverage, standardized residuals, with lines for significantly high Cook's distance (red dotted lines).
+
+```{r}
+plot(house_prices.lm, which = 5)
+```
+
+We see here one very conspicuous point i.e. observation 1299. We remove this observation from the data set to see it's effect on performance. Examine this point, its data quality is suspect and we are confident that it can be removed.
+
+```{r}
+influential_indices = as.vector(which(cooks.distance(house_prices.lm) > 4/length(cooks.distance(house_prices.lm))))
+house_prices_outliers_removed.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + CentralAir, data = house_prices[-influential_indices[1], ])
+diagnostics(house_prices_outliers_removed.lm)
+```
+
+```{r}
+plot(house_prices_outliers_removed.lm, which = 5)
+```
+
+We now look at how the data performs using k-fold cross validation:
+
+```{r}
+kfold_cv(house_prices[-influential_indices[1],], house_prices_outliers_removed.lm, 547, log_response = TRUE)
+``` 
+
+We can get a model that predicts at < 10% error by removing a single outlier. So, we have a very good model for prediction performance that meets the original goal.
+
+### LINE assumptions
+
+The fitted versus residuals plot above does not look too bad. It looks like a cluster of noise, basically, with little discernable structure. However, the Normal Q-Q plot deviates quite a bit from what we would expect with a normal model.
+
+We have only removed a single outlier so far, let's try the model by removing all remaining outliers (defined as those points have a Cook's distance of > 4/n).
+
+```{r}
+influential_indices = as.vector(which(cooks.distance(house_prices.lm) > 4/length(cooks.distance(house_prices.lm))))
+house_prices_outliers_removed.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + CentralAir, data = house_prices[-influential_indices, ])
+diagnostics(house_prices_outliers_removed.lm)
+```
+
+The results are satisfying, at least visually. We have plots that at least give some confidence of having equal variance and normal distribution of error. 
+
+```{r}
+bptest(house_prices_outliers_removed.lm)
+shapiro.test(resid(house_prices_outliers_removed.lm))
+```
+
+While we would still have to reject the null hypothesis with these two tests and conclude that it is unlikely that our error distribution is equal and normal, the performance is better than the unmodified original model.
+
+***
+
+We now look at how this model based on removing outliers performs using k-fold cross validation:
+
+```{r}
+length(coef(house_prices_outliers_removed.lm))
+kfold_cv(house_prices[-influential_indices, ], house_prices_outliers_removed.lm, 6, log_response = TRUE)
+``` 
+
+We see that we do indeed have a very strong model. 
+
+```{r}
+summary(house_prices_outliers_removed.lm)
+```
+
+### Improving the model
+
+```{r}
+house_prices_outliers_removed.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + BedroomAbvGr + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + HouseStyle + CentralAir + Heating, data = house_prices[-influential_indices,])
+house_prices_outliers_removed.lm = step(house_prices_outliers_removed.lm, direction = "backward", trace = 0)
+summary(house_prices_outliers_removed.lm)
+```
+
+```{r}
+length(coef(house_prices_outliers_removed.lm))
+kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE)
+```
+
+```{r}
+house_prices_outliers_removed.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + BedroomAbvGr + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + HouseStyle + CentralAir + Heating, data = house_prices[-influential_indices,])
+house_prices_outliers_removed.lm = step(house_prices_outliers_removed.lm, direction = "backward", k = log(nrow(house_prices[-influential_indices,])), trace = 0)
+summary(house_prices_outliers_removed.lm)
+```
+
+```{r}
+length(coef(house_prices_outliers_removed.lm))
+kfold_cv(house_prices[-influential_indices,], house_prices_outliers_removed.lm, 6, log_response = TRUE)
+```
+
+We see that the resulting model performs well (slightly better than our originally proposed model), and uses one less predictor (full bath) than our original model.
+
+### Analysis of correlation
+
+Now that we have clean data we take an initial look at our data set to spot colinearity among the numeric variables in the data. This may help identify (manually) relationships between variables that may be suggestive of fruitful inclusions of predictors, or conversely destablilizing collinearity between predictors.
+
+Extract the numeric variables from our dataset, then calculate the correlations.
+
+```{r}
+X_numeric = house_prices[sapply(house_prices, is.numeric)]
+correlation = round(cor(X_numeric, use = "everything"), 4)
+```
+
+Now plot the correlations:
+
+```{r correlation_plot}
+corrplot(correlation, type = "upper", tl.pos = "td",
+         method = "circle", tl.cex = 0.5, tl.col = 'black',
+         diag = FALSE)
+```
+
+## Results
+
+Let's see how this model performs for making predictions against our test data.
+
+```{r}
+influential_indices = as.vector(which(cooks.distance(house_prices.lm) > 4/length(cooks.distance(house_prices.lm))))
+house_prices_outliers_removed.lm = lm(log(SalePrice) ~ GrLivArea + LotArea + GarageArea + FullBath + HalfBath + TotalBsmtSF + OverallQual + OverallCond + YearBuilt + BldgType + CentralAir, data = house_prices[-influential_indices, ])
+```
+
+```{r}
+house_prices_prediction = exp(predict(house_prices_outliers_removed.lm,
+                                  newdata = house_prices_test))
+
+```
+
+Let's see a histogram of the errors
+
+```{r}
+hist(house_prices_test$SalePrice - house_prices_prediction, breaks = 50, freq = FALSE)
+```
+
+We can see that the majority of the error is centered around 0, indicating that the error is often close to 0.
+
+```{r}
+mape(actual = house_prices_test$SalePrice, house_prices_prediction)
+```
+
+A `r round(mape(actual = house_prices_test$SalePrice, house_prices_prediction), 2)`% error falls within our target goal interval.
+
+One of our other goal was for the the model to adhere to LINE assumptions. We can see in the Fitted Vs Residuals and Q-Q Plot that the model demonstrates both normality and relatively constant variance.
+
+```{r}
+diagnostics(house_prices_outliers_removed.lm)
+```
+
+We will also check the `loocv_rmse`...
+
+```{r}
+get_loocv_rmse(house_prices_outliers_removed.lm)
+```
+
+ and the Adjusted $R^2$ value
+
+```{r}
+get_adj_r2(house_prices_outliers_removed.lm)
+```
+
+From both values we can see that the model performs well by multiple metrics.
+
+Next let's check for any multicollinearity issues.
+
+```{r}
+vif(house_prices_outliers_removed.lm)
+```
+
+We can see that all of vif's are less than 5, indicating that multicollinearity should not be an issue with the model with the interactions included.
+
+***
+
+## Discussion
+
+Since all of the houses in this data set came from the same geographic area (Ames, Iowa), we can assume that the physical characteristics of the house determined its price, as opposed to the comparison of prices being driven by the housing market in which it resides (i.e. comparing prices in completely different markets, such as, South Dakota and southern California). One of the benefits of using this data set is that most of us have a decent amount of practical experience with housing prices in our lives, which gives us a pretty good intuition for what determines the price of a house. 
+
+Due to the overwhelming number of variables in this data set, it occured to us that as opposed to just wandering around in the dark, one way to go about this would be to make use of real estate websites. The reasoning for this is that monetary value is often dependent on personal worth. A product only exists within the economic market if it can support the supply:demand economic relationship, which is based on the personal_worth:finalcial_cost relationship at the individual level. Thus, by transitivity, the things that a buyer values in a home are likely propotional in some way to the cost. Real estate offices and websites have likely narrowed down the things that are important to buyers so that the buyers can find a home easily and make a purchase through them, so it made sense to make use of these assumptions. 
+
+As we could see with the small average percent error, the characteristics most prominently featured on a real estate website were highly correlated with the price of the home. In conclusion, the model performs well across multiple metrics, seems to mostly adhere to LINE assumptions, and makes relatively accurate predictions. This gives evidence to support the hypothesis that a good model can be made from the most prominent features displayed on real estate websites.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
